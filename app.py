@@ -744,4 +744,6 @@ with gr.Blocks() as demo:
     copy_sku_btn.click(copy_sku_column, inputs=[shipping_cost, boq_table], outputs=[copy_sku_output])
     
 # Launch the Gradio app
-demo.launch(server_name="0.0.0.0", server_port=7860)
+port = int(os.environ.get("PORT", 7860))
+demo.launch(server_name="0.0.0.0", server_port=port)
+
