@@ -1,0 +1,22 @@
+Select,Firewall,Endpoint,M D R,Email,Wireless,Switches,Modules & Transceivers,Others
+,XGS 88,Intercept X Advanced,Central Managed Detection and Response Essentials,Central Email Advanced,AP6 420,CS101-8,8 port GE copper Flexi Port module (for all XGS Rackmount models),XRP2000 External Redundant Power Supply (for XGS 2xxx/3xxx/4300 models only) - EU/UK power cord
+,XGS 88w,Intercept X Advanced with XDR,Central Managed Detection and Response Complete,Central Phish Threat,AP6 420E,CS101-8FP,8 port GE SFP Flexi Port module (for all XGS Rackmount models),"Sophos AP6 Mounting bracket kit for plenum & flat ceiling mount (for AP6 420, 420E, 840, 840E only)"
+,XGS 108,Intercept X Advanced for Server,Central Managed Risk,,,CS110-24,4 port GE copper bypass (2 pairs) Flexi Port module (for all XGS Rackmount models),"Sophos APX/AP6 Suspend mount kit (for APX320, 530, 740 and AP6 420, 420E, 840, 840E only)"
+,XGS 108w,Central Intercept X Advanced for Server with XDR,Central Intercept X Advanced with XDR,,AP6 840,CS110-24FP,4 port 10 GE SFP+ Flexi Port module (for all XGS Rackmount models),Sophos AP6 420 multi-region power adapter
+,XGS 118,Central Managed Detection and Response Essentials,Central Intercept X Advanced for Server with XDR,,AP6 840E,CS110-48,2 port GbE fiber (LC) Bypass + 4 port GbE SFP Flexi Port module (for all XGS Rackmount models),SD-RED 60 Rackmount kit with adapter holder
+,XGS 118w,Central Managed Detection and Response Complete,Central Data Storage - 1 yr Pack,,AP6 420X,CS110-48FP,2 port 10GbE fiber (LC) Bypass + 4 port 10GbE SFP+ Flexi Port module (for XGS 5500/6500/7500/8500 models only),DIN Rail Mounting Kit (for XGS Desktop and SD-RED models only)
+,XGS 128,Central Managed Detection and Response Complete Server,Central Email Integration Pack,,,CS210-8FP,4port GE copper PoE(total 60W)+4port GE copper Flexi Port module(for XGS 2xxx/3xxx/4xxx models only),SD-RED 20 multi-region power adapter - Spare (incl. regional plugs)
+,XGS 128w,Central Managed Detection and Response Essentials Server,Central Firewall Integration Pack,,,CS210-24FP,4 port 2.5 GE copper PoE (total 60W) Flexi Port module (for XGS 2xxx/3xxx/4xxx models only),SD-RED 60 Power Supply - Spare (without power cord)
+,XGS 138,Central Device Encryption,Central Managed Detection and Response Essentials Server,,,CS210-48FP,2 port 40GbE QSFP+ Flexi Port Module (for XGS 5500/6500/7500/8500 models only),"802.11ac 2x2 WiFi module (for SG/XG 135w rev.3, SD-RED 20/60 only)"
+,XGS 2100,Central Zero Trust Network,Central Managed Detection and Response Complete Server,,,CS1010-8FP,8 port 10GbE SFP+ Flexi Port module (for XGS 5500/6500/7500/8500 models only),Redundant Power Supply (for XGS 4500 only)
+,XGS 2300,Extended Support,Central Backup and Recovery Integration Pack,,,,4 port 2.5GbE copper + 12 port GbE High-density Flexi Port module (for XGS 5500/6500/7500/8500 models only),Gbit/2.5G PoE+ Injector (802.3af/at - 30W) - UK power cord
+,XGS 3100,,Central Public Cloud Integration Pack,,,,1GbE Copper Transceiver (1000 Base-T),Gbit/2.5G PoE++ Injector (802.3bt - 60W) - UK power cord
+,XGS 3300,,Incident Response Retainer,,,,1GbE Fiber Transceiver Short Range (1000 Base-SX),
+,XGS 4300,,Central Identity Integration Pack,,,,1GbE Fiber Transceiver Long Range (1000 Base-LX),
+,XGS 4500,,Central Network Integration Pack,,,,10GbE Fiber Transceiver Short Range (10 Base-SR),
+,XGS 5500,,Central Network Detection and Response,,,,10GbE Fiber Transceiver Long Range (10 Base-LR),
+,XGS 6500,,,,,,SFP VDSL module (for all SG/XG/XGS appliances),
+,XGS 7500,,,,,,,
+,XGS 8500,,,,,,,
+,SD-RED 20,,,,,,,
+,SD-RED 60,,,,,,,

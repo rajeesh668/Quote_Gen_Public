@@ -1,0 +1,68 @@
+Model,SKU
+XGS 88,XG88ZZ00ZZPCUK
+XGS 88w,XW88ZZ00ZZPCUK
+XGS 108,XG108Z00ZZPCUK
+XGS 108w,XW108Z00ZZPCUK
+XGS 118,XG118Z00ZZPCUK
+XGS 118w,XW118Z00ZZPCUK
+XGS 128,XG128Z00ZZPCUK
+XGS 128w,XW128Z00ZZPCUK
+XGS 138,XG138Z00ZZPCUK
+XGS 2100,XG2ATCHEUK
+XGS 2300,XG2CTCHEUK
+XGS 3100,XG3ATCHEUK
+XGS 3300,XG3CTCHEUK
+XGS 4300,XG4CTCHEUK
+XGS 4500,XG4ETCHEUK
+XGS 5500,XG5ETCHEUK
+XGS 6500,XG6ETCHEUK
+XGS 7500,XG7ETCHEUK
+XGS 8500,XG8ETCHEUK
+SD-RED 20,R20ZTCHMR
+SD-RED 60,R60ZTCHEUK
+8 port GE copper Flexi Port module (for all XGS Rackmount models),XSBZTCHC8
+8 port GE SFP Flexi Port module (for all XGS Rackmount models),XSBZTCHF8
+4 port GE copper bypass (2 pairs) Flexi Port module (for all XGS Rackmount models),XSAZTCHC6
+4 port 10 GE SFP+ Flexi Port module (for all XGS Rackmount models),XSAZTCHF4
+2 port GbE fiber (LC) Bypass + 4 port GbE SFP Flexi Port module (for all XGS Rackmount models),XSBZTCHF6
+2 port 10GbE fiber (LC) Bypass + 4 port 10GbE SFP+ Flexi Port module (for XGS 5500/6500/7500/8500 models only),XSAZTCHF6
+4port GE copper PoE(total 60W)+4port GE copper Flexi Port module(for XGS 2xxx/3xxx/4xxx models only),XSAZTCHC8
+4 port 2.5 GE copper PoE (total 60W) Flexi Port module (for XGS 2xxx/3xxx/4xxx models only),XSBZTCHC4
+2 port 40GbE QSFP+ Flexi Port Module (for XGS 5500/6500/7500/8500 models only),XSBZTCHF2
+8 port 10GbE SFP+ Flexi Port module (for XGS 5500/6500/7500/8500 models only),XSAZTCHF8
+4 port 2.5GbE copper + 12 port GbE High-density Flexi Port module (for XGS 5500/6500/7500/8500 models only),XSAZTCHC4
+AP6 420,AP420R00ZZPCNP
+AP6 420E,AP42ER00ZZPCNP
+AP6 420X,AP42XR00ZZPCNP
+AP6 840,AP840R00ZZPCNP
+AP6 840E,AP84ER00ZZPCNP
+XRP2000 External Redundant Power Supply (for XGS 2xxx/3xxx/4300 models only) - EU/UK power cord,XSXZT2HEUK
+"Sophos AP6 Mounting bracket kit for plenum & flat ceiling mount (for AP6 420, 420E, 840, 840E only)",MKMBAP00ZZPCAA
+"Sophos APX/AP6 Suspend mount kit (for APX320, 530, 740 and AP6 420, 420E, 840, 840E only)",APXZTCHSM
+Sophos AP6 420 multi-region power adapter,AP420Z00ZZPCMR
+SD-RED 60 Rackmount kit with adapter holder,RMSZTCHRA
+DIN Rail Mounting Kit (for XGS Desktop and SD-RED models only),RMRZTCHAA
+SD-RED 20 multi-region power adapter - Spare (incl. regional plugs),R20ZTCHPS
+SD-RED 60 Power Supply - Spare (without power cord),R60ZTCHPS
+"802.11ac 2x2 WiFi module (for SG/XG 135w rev.3, SD-RED 20/60 only)",XSGZTCH2W
+Redundant Power Supply (for XGS 4500 only),XS4ETCHPS
+Gbit/2.5G PoE+ Injector (802.3af/at - 30W) - UK power cord,PO2ZTCHUK
+Gbit/2.5G PoE++ Injector (802.3bt - 60W) - UK power cord,PW60WZ00ZZPCUK
+"3G/4G module (for SG/XG 125(w)/135(w) Rev.3, SD-RED20/60 only) Americas/EMEA",XSGZTCH3A
+1GbE Copper Transceiver (1000 Base-T),ITFZTCHTC
+1GbE Fiber Transceiver Short Range (1000 Base-SX),ITFZTCHSX
+1GbE Fiber Transceiver Long Range (1000 Base-LX),ITFZTCHLX
+10GbE Fiber Transceiver Short Range (10 Base-SR),ITFZTCHXF
+10GbE Fiber Transceiver Long Range (10 Base-LR),ITFZTCHLR
+SFP VDSL module (for all SG/XG/XGS appliances),XSGZTCHSF
+CS101-8,C18ATCHEK
+CS101-8FP,C18CTCHUK
+CS110-24,C12ATCHUK
+CS110-24FP,C12CTCHUK
+CS110-48,C14ATCHUK
+CS110-48FP,C14BTCHUK
+CS210-8FP,C28CTCHUK
+CS210-24FP,C22CTCHUK
+CS210-48FP,C14CTCHUK
+CS1010-8FP,C24CTCHUK
+CS1010-8FP,C24CTCHUK
