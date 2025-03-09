@@ -556,11 +556,11 @@ def toggle_shipping_box(override_value):
     else:
         return gr.update(visible=False, value=4)
 
-def download_final_quote(boq_data):
+def download_final_quote(boq_data, currency, vat):
     if boq_data is None or boq_data.empty:
         return None
-    df_final = generate_final_quote(4, boq_data, "SAR", 15)
-    file_path = os.path.join(f"Final_Quote_{uuid.uuid4().hex}.xlsx")
+    df_final = generate_final_quote(4, boq_data, currency, vat)
+    file_path = os.path.join("C:\\Quote_Gen_Local", f"Final_Quote_{uuid.uuid4().hex}.xlsx")
     with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
         df_final.to_excel(writer, index=False, sheet_name="Quote", startrow=0)
         workbook = writer.book
@@ -653,6 +653,7 @@ def download_final_quote(boq_data):
             worksheet.set_row(row, 20)
 
     return file_path
+
 
 def copy_sku_column(shipping_cost, boq_data):
     final_df = generate_final_quote(shipping_cost, boq_data, "SAR", 15)
@@ -755,7 +756,8 @@ with gr.Blocks() as demo:
     use_license.change(update_license_box, inputs=[use_license, category], outputs=[license_box])
     category.change(update_category_message, inputs=[category], outputs=[category_message])
     override_shipping.change(toggle_shipping_box, inputs=[override_shipping], outputs=[shipping_cost])
-    download_button.click(fn=download_final_quote, inputs=[boq_table], outputs=download_output)
+    download_button.click(fn=download_final_quote, inputs=[boq_table, currency, vat], outputs=download_output)
+
     
     def toggle_wireless_license(model_sel):
         if model_sel.strip().upper().startswith("AP6"):
