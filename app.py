@@ -774,8 +774,9 @@ google_bp = make_google_blueprint(
     client_id=os.environ.get("GOOGLE_CLIENT_ID"),
     client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
     scope=["profile", "email"],
-    redirect_url="/login/google/authorized"
+    redirect_url="https://quotegenpublic-production.up.railway.app/login/google/authorized"
 )
+
 app.register_blueprint(google_bp, url_prefix="/login")
 
 @app.route("/")
