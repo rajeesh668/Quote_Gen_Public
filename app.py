@@ -766,6 +766,7 @@ def launch_gradio_interface():
 # =====================
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(16))
+app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 from flask import session
 from flask_dance.contrib.google import make_google_blueprint, google
