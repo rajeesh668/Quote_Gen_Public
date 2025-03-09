@@ -764,9 +764,13 @@ def launch_gradio_interface():
 # =====================
 # Flask Application with Google OAuth using Flask-Dance
 # =====================
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(16))
 app.config['PREFERRED_URL_SCHEME'] = 'https'
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 
 from flask import session
 from flask_dance.contrib.google import make_google_blueprint, google
