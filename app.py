@@ -1,9 +1,9 @@
-from flask import Flask, redirect, url_for, session, render_template_string
+import os
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'from flask import Flask, redirect, url_for, session, render_template_string
 from flask_dance.contrib.google import make_google_blueprint, google
 import gradio as gr
 import pandas as pd
 import re
-import os
 import uuid
 import time
 import secrets
