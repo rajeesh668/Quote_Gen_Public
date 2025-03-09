@@ -804,8 +804,8 @@ def logout():
 
 @app.route("/gradio")
 def gradio_route():
-    demo = launch_gradio_interface()
-    return demo.launch(inline=True, share=False)
+    return "Hello from /gradio!"
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
