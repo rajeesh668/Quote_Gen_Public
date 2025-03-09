@@ -530,22 +530,24 @@ def generate_final_quote(shipping_cost, boq_data, currency, vat):
             f"Unit Price ({currency})", f"Total Price ({currency})"
         ])
     df_quote = boq_data.copy()
-    df_quote[f"Unit Price ({currency})"] = df_quote["Disc. Price (USD)"].astype(float).apply(lambda x: custom_round(x * 3.7575))
+    # Use the conversion rate based on the selected currency
+    conversion_rate = conversion_rates.get(currency, 1.0)
+    df_quote[f"Unit Price ({currency})"] = df_quote["Disc. Price (USD)"].astype(float).apply(lambda x: custom_round(x * conversion_rate))
     df_quote[f"Total Price ({currency})"] = df_quote.apply(lambda row: custom_round(row[f"Unit Price ({currency})"] * float(row["Quantity"])), axis=1)
-    total_subtotal_sar = df_quote[f"Total Price ({currency})"].sum()
+    total_subtotal = df_quote[f"Total Price ({currency})"].sum()
     shipping_items = df_quote[df_quote["Product Type"].isin(["Appliance", "Hardware"])]
     total_original_usd = shipping_items.apply(lambda r: float(r["Original Price (USD)"]) * float(r["Quantity"]), axis=1).sum()
-    total_shipping_sar = total_original_usd * (float(shipping_cost) / 100.0) * 3.7575
-    total_vat_sar = 0.15 * (total_subtotal_sar + total_shipping_sar)
-    grand_total_sar = total_subtotal_sar + total_shipping_sar + total_vat_sar
+    total_shipping = total_original_usd * (float(shipping_cost) / 100.0) * conversion_rate
+    total_vat = (vat/100.0) * (total_subtotal + total_shipping)
+    grand_total = total_subtotal + total_shipping + total_vat
     df_final_quote = df_quote[[
         "SKU", "Description", "Term", "Quantity", 
         f"Unit Price ({currency})", f"Total Price ({currency})"
     ]]
     df_summary = pd.DataFrame([
-        ["", "Shipping Cost", "", "", "", f"{total_shipping_sar:.2f}"],
-        ["", f"VAT ({vat}%)", "", "", "", f"{total_vat_sar:.2f}"],
-        ["", "GRAND TOTAL", "", "", "", f"{grand_total_sar:.2f}"]
+        ["", "Shipping Cost", "", "", "", f"{total_shipping:.2f}"],
+        ["", f"VAT ({vat}%)", "", "", "", f"{total_vat:.2f}"],
+        ["", "GRAND TOTAL", "", "", "", f"{grand_total:.2f}"]
     ], columns=df_final_quote.columns)
     df_final = pd.concat([df_final_quote, df_summary], ignore_index=True)
     return df_final
@@ -560,7 +562,7 @@ def download_final_quote(boq_data, currency, vat):
     if boq_data is None or boq_data.empty:
         return None
     df_final = generate_final_quote(4, boq_data, currency, vat)
-    file_path = os.path.join("C:\\Quote_Gen_Local", f"Final_Quote_{uuid.uuid4().hex}.xlsx")
+    file_path = os.path.join(f"Final_Quote_{uuid.uuid4().hex}.xlsx")
     with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
         df_final.to_excel(writer, index=False, sheet_name="Quote", startrow=0)
         workbook = writer.book
