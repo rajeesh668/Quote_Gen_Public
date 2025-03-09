@@ -28,7 +28,7 @@ def load_license_data():
     Loads License.csv from the local folder.
     """
     try:
-        license_df = pd.read_csv("data/License.csv", encoding="ISO-8859-1")
+        llicense_df = pd.read_csv("data/License.csv", encoding="ISO-8859-1")
         return license_df
     except Exception as e:
         print("Error loading License CSV:", e)
@@ -100,15 +100,12 @@ def remove_last_item(quote_state):
     """
     Removes the last item from the state.
     """
-    # Convert DataFrame to list if necessary
     if isinstance(quote_state, pd.DataFrame):
         state_list = quote_state.values.tolist()
     else:
         state_list = quote_state if quote_state is not None else []
-    
     if len(state_list) > 0:
         state_list.pop()
-    
     df = pd.DataFrame(state_list, columns=[
         "SKU", "Description", "Term", "Quantity", "Original Price (USD)",
         "Reseller Price (USD)", "Disc. Price (USD)",
@@ -260,7 +257,6 @@ def add_line_item(category, model_selected, transaction_type, term, quantity, pa
     Adds new line items without resetting already edited BOQ values.
     Uses the current BOQ table (passed as current_boq) to preserve manual edits.
     """
-    # Convert current BOQ DataFrame to state list if available
     if current_boq is not None and not current_boq.empty:
         state = current_boq.values.tolist()
     else:
@@ -307,7 +303,6 @@ def add_line_item(category, model_selected, transaction_type, term, quantity, pa
             ])
             return df, pd.DataFrame(state, columns=df.columns)
     
-    # Process multiline SKU input.
     sku_list = [line.strip() for line in manual_sku.splitlines() if line.strip()] if manual_sku.strip() else [manual_sku]
     
     if sku_list and len(sku_list) > 1:
@@ -324,7 +319,6 @@ def add_line_item(category, model_selected, transaction_type, term, quantity, pa
             else:
                 prod_class = prod_type.upper()
             trans_type = sku_rows.iloc[0].get("Transaction Type", transaction_type) if not sku_rows.empty else transaction_type
-            # Discount logic (including force to MME if line total >= 5000)
             if prod_class in ["SMB", "WIRELESS LICENSE", "SWITCH SUPPORT"]:
                 if orig_price * quantity >= 5000:
                     prod_class = "MME"
@@ -487,7 +481,43 @@ def add_line_item(category, model_selected, transaction_type, term, quantity, pa
         ])
         return df, pd.DataFrame(state, columns=df.columns)
 
-def recalc_boQ(boq_df):
+def recalc_boQ(boq_df, partner_type, ui_trans_type, deal_registered, incumbency):
+    """
+    Recalculates the BOQ and, if the cumulative Original Price*Qty of core products is >=5000,
+    then for any line item that is classified as "SMB" and qualifies based on UI selections (New with Deal Registration
+    or Renewal with Incumbency), automatically override the Classification to "MME" and set the Override Discount (%) accordingly.
+    """
+    # First, compute the cumulative total for core products (we consider "SMB" and "MME" as core)
+    cumulative_total = 0.0
+    for idx, row in boq_df.iterrows():
+        classification = str(row.get("Classification", "")).strip().upper()
+        if classification in ["SMB", "MME"]:
+            try:
+                original = float(row["Original Price (USD)"])
+                qty = float(row["Quantity"])
+            except:
+                continue
+            cumulative_total += original * qty
+
+    # If cumulative total is 5000 or more, adjust qualifying lines
+    if cumulative_total >= 5000:
+        for idx, row in boq_df.iterrows():
+            classification = str(row.get("Classification", "")).strip().upper()
+            # Check if line is a core product that is still "SMB"
+            if classification == "SMB":
+                # Use the UI transaction type (ui_trans_type) to decide which condition to apply
+                if ui_trans_type == "New" and deal_registered:
+                    # Override discount using partner_discounts_DR
+                    new_disc = partner_discounts_DR.get(partner_type, 0) * 100  # percentage
+                    boq_df.at[idx, "Classification"] = "MME"
+                    boq_df.at[idx, "Override Discount (%)"] = f"{new_disc:.0f}"
+                    boq_df.at[idx, "Status"] = f"MME, DR: {new_disc:.0f}%"
+                elif ui_trans_type == "Renewal" and incumbency:
+                    new_disc = partner_incumbency.get(partner_type, 0) * 100
+                    boq_df.at[idx, "Classification"] = "MME"
+                    boq_df.at[idx, "Override Discount (%)"] = f"{new_disc:.0f}"
+                    boq_df.at[idx, "Status"] = f"MME, Incumbency: {new_disc:.0f}%"
+    # Now, proceed with final price recalculation as before
     new_rows = []
     for idx, row in boq_df.iterrows():
         try:
@@ -515,9 +545,9 @@ def recalc_boQ(boq_df):
     ]]
     return new_df
 
-def generate_final_quote_wrapper(shipping_cost, boq_table, currency, vat):
+def generate_final_quote_wrapper(shipping_cost, boq_table, currency, vat, partner_type, ui_trans_type, deal_registered, incumbency):
     time.sleep(0.5)  # slight delay to allow manual edits to commit
-    updated_boq = recalc_boQ(boq_table)
+    updated_boq = recalc_boQ(boq_table, partner_type, ui_trans_type, deal_registered, incumbency)
     final_quote = generate_final_quote(shipping_cost, updated_boq, currency, vat)
     return final_quote, updated_boq
 
@@ -530,7 +560,6 @@ def generate_final_quote(shipping_cost, boq_data, currency, vat):
             f"Unit Price ({currency})", f"Total Price ({currency})"
         ])
     df_quote = boq_data.copy()
-    # Use the conversion rate based on the selected currency
     conversion_rate = conversion_rates.get(currency, 1.0)
     df_quote[f"Unit Price ({currency})"] = df_quote["Disc. Price (USD)"].astype(float).apply(lambda x: custom_round(x * conversion_rate))
     df_quote[f"Total Price ({currency})"] = df_quote.apply(lambda row: custom_round(row[f"Unit Price ({currency})"] * float(row["Quantity"])), axis=1)
@@ -656,7 +685,6 @@ def download_final_quote(boq_data, currency, vat):
 
     return file_path
 
-
 def copy_sku_column(shipping_cost, boq_data):
     final_df = generate_final_quote(shipping_cost, boq_data, "SAR", 15)
     if final_df.empty:
@@ -679,15 +707,12 @@ def toggle_shipping_box(override_value):
 with gr.Blocks() as demo:
     gr.Markdown("""
 <h1 style="text-align:center; margin-bottom:0;">
-  Quote Point
+  🚀 Sophos Quotation Generator
 </h1>
-<p style="text-align:center; font-size:1.1em; margin-top:0;">
-  Sophos Quotation Generator
-</p>
 <p style="text-align:center; font-size:0.9em; margin-top:0;">
-  Developed by Rajeesh Nair - rajeesh@starlinkme.net
+  Version 2 - Developed by Rajeesh Nair - rajeesh@starlinkme.net
 </p>
-""")
+    """)
     
     with gr.Row():
         category = gr.Dropdown(list(models_df.columns), label="Category")
@@ -714,18 +739,14 @@ with gr.Blocks() as demo:
         vat = gr.Number(label="VAT (%)", value=15)
     with gr.Row():
         partner_type = gr.Dropdown(["Authorised", "Silver", "Gold", "Platinum"], label="Partner Type", value="Authorised")
-        # Always visible checkboxes next to Partner Type
         deal_registered = gr.Checkbox(label="Deal Registration", value=False, visible=True)
         incumbency = gr.Checkbox(label="Incumbency", value=False, visible=True)
-    
-    # Removed the toggle_registration function and event binding so these checkboxes are always visible.
     
     # Use hidden state (gr.State) to store the BOQ data.
     quote_state = gr.State([])
     
     with gr.Row():
         add_button = gr.Button("+ Add Line Item")
-        
         remove_button = gr.Button("- Remove Last Item")
         reset_button = gr.Button("Reset Quote")
     
@@ -758,8 +779,7 @@ with gr.Blocks() as demo:
     use_license.change(update_license_box, inputs=[use_license, category], outputs=[license_box])
     category.change(update_category_message, inputs=[category], outputs=[category_message])
     override_shipping.change(toggle_shipping_box, inputs=[override_shipping], outputs=[shipping_cost])
-    download_button.click(fn=download_final_quote, inputs=[boq_table, currency, vat], outputs=download_output)
-
+    download_button.click(fn=download_final_quote, inputs=[boq_table, currency, vat], outputs=[download_output])
     
     def toggle_wireless_license(model_sel):
         if model_sel.strip().upper().startswith("AP6"):
@@ -782,14 +802,13 @@ with gr.Blocks() as demo:
         outputs=[boq_table, quote_state]
     )
     
-    # For Remove and Reset, pass the hidden state (quote_state) as input.
     remove_button.click(remove_last_item, inputs=[quote_state], outputs=[boq_table, quote_state])
     reset_button.click(reset_quote, inputs=[quote_state], outputs=[boq_table, quote_state])
     
-    # Use wrapper so that recalc happens before generating final quote and BOQ is updated.
+    # Updated generate final quote wrapper now accepts extra UI parameters for core total check
     generate_button.click(
         generate_final_quote_wrapper,
-        inputs=[shipping_cost, boq_table, currency, vat],
+        inputs=[shipping_cost, boq_table, currency, vat, partner_type, transaction_type, deal_registered, incumbency],
         outputs=[final_output, boq_table]
     )
     
