@@ -1,18 +1,18 @@
+from flask import Flask, redirect, url_for, session, render_template_string
+from flask_dance.contrib.google import make_google_blueprint, google
 import gradio as gr
 import pandas as pd
 import re
 import os
-import pyperclip  # Ensure you have pyperclip installed
 import uuid
 import time
+import secrets
+import pyperclip
 
-# ---------------------
+# =====================
 # Data Loading Functions
-# ---------------------
+# =====================
 def load_data():
-    """
-    Loads Models.csv and SKU.csv from the local folder.
-    """
     try:
         models_df = pd.read_csv("data/Models.csv", encoding="ISO-8859-1")
         sku_df = pd.read_csv("data/SKU.csv", encoding="ISO-8859-1")
@@ -24,20 +24,14 @@ def load_data():
 models_df, sku_df = load_data()
 
 def load_license_data():
-    """
-    Loads License.csv from the local folder.
-    """
     try:
-        llicense_df = pd.read_csv("data/License.csv", encoding="ISO-8859-1")
+        license_df = pd.read_csv("data/License.csv", encoding="ISO-8859-1")
         return license_df
     except Exception as e:
         print("Error loading License CSV:", e)
         return pd.DataFrame()
 
 def load_fixed_skus():
-    """
-    Loads FixedSKUs.csv from the local folder.
-    """
     try:
         fixed_df = pd.read_csv("data/FixedSKUs.csv", encoding="ISO-8859-1")
         fixed_dict = dict(zip(fixed_df["Model"].str.strip(), fixed_df["SKU"].str.strip()))
@@ -48,58 +42,28 @@ def load_fixed_skus():
 
 fixed_skus = load_fixed_skus()
 
-# ---------------------
+# =====================
 # Discount Tables
-# ---------------------
-partner_discounts = {  # for SMB
-    "Authorised": 0.14,
-    "Silver": 0.19,
-    "Gold": 0.24,
-    "Platinum": 0.29
-}
-partner_discounts_DR = {  # for NEW MME when deal registration is checked
-    "Authorised": 0.20,
-    "Silver": 0.25,
-    "Gold": 0.30,
-    "Platinum": 0.35
-}
-partner_incumbency = {  # for RENEWAL MME when incumbency is checked
-    "Authorised": 0.10,
-    "Silver": 0.15,
-    "Gold": 0.20,
-    "Platinum": 0.25
-}
+# =====================
+partner_discounts = {"Authorised": 0.14, "Silver": 0.19, "Gold": 0.24, "Platinum": 0.29}
+partner_discounts_DR = {"Authorised": 0.20, "Silver": 0.25, "Gold": 0.30, "Platinum": 0.35}
+partner_incumbency = {"Authorised": 0.10, "Silver": 0.15, "Gold": 0.20, "Platinum": 0.25}
 
-# ---------------------
+# =====================
 # Currency Conversion and VAT Setup
-# ---------------------
-conversion_rates = {
-    "SAR": 3.7575,  # Default value; for SAR
-    "AED": 3.67,
-    "QAR": 3.722,
-    "OMR": 0.3846,
-    "KWD": 0.32,
-    "USD": 1.0,
-}
+# =====================
+conversion_rates = {"SAR": 3.7575, "AED": 3.67, "QAR": 3.722, "OMR": 0.3846, "KWD": 0.32, "USD": 1.0}
 
-# ---------------------
+# =====================
 # Helper: Custom Rounding Function
-# ---------------------
+# =====================
 def custom_round(x):
-    """
-    Round x to the nearest integer:
-    - If fractional part is 0.5 or more, round up.
-    - Otherwise, round down.
-    """
     return int(x + 0.5)
 
-# ---------------------
-# Helper Functions using gr.State instead of a global variable
-# ---------------------
+# =====================
+# Helper Functions for BOQ and SKU Lookup
+# =====================
 def remove_last_item(quote_state):
-    """
-    Removes the last item from the state.
-    """
     if isinstance(quote_state, pd.DataFrame):
         state_list = quote_state.values.tolist()
     else:
@@ -115,9 +79,6 @@ def remove_last_item(quote_state):
     return df, pd.DataFrame(state_list, columns=df.columns)
 
 def reset_quote(quote_state):
-    """
-    Resets the state to an empty list.
-    """
     state = []
     df = pd.DataFrame(columns=[
         "SKU", "Description", "Term", "Quantity", "Original Price (USD)",
@@ -253,16 +214,12 @@ def find_switch_support_sku(model_name, transaction_type, term):
 def add_line_item(category, model_selected, transaction_type, term, quantity, partner_type, manual_sku,
                   use_license, license_selected, deal_registered, incumbency, use_wireless_license,
                   use_switch_support, current_boq):
-    """
-    Adds new line items without resetting already edited BOQ values.
-    Uses the current BOQ table (passed as current_boq) to preserve manual edits.
-    """
     if current_boq is not None and not current_boq.empty:
         state = current_boq.values.tolist()
     else:
         state = []
     
-    # ----- Wireless License Branch -----
+    # Wireless License Branch
     if use_wireless_license and model_selected.strip().upper().startswith("AP6"):
         lic_sku, lic_desc, lic_price, lic_type = find_wireless_license_support_sku(
             model_selected, transaction_type, term
@@ -284,7 +241,7 @@ def add_line_item(category, model_selected, transaction_type, term, quantity, pa
             ])
             return df, pd.DataFrame(state, columns=df.columns)
     
-    # ----- Switch Support Branch -----
+    # Switch Support Branch
     if use_switch_support and str(category).strip().lower() == "switches":
         sw_sku, sw_desc, sw_price, sw_type = find_switch_support_sku(
             model_selected, transaction_type, term
@@ -482,12 +439,6 @@ def add_line_item(category, model_selected, transaction_type, term, quantity, pa
         return df, pd.DataFrame(state, columns=df.columns)
 
 def recalc_boQ(boq_df, partner_type, ui_trans_type, deal_registered, incumbency):
-    """
-    Recalculates the BOQ and, if the cumulative Original Price*Qty of core products is >=5000,
-    then for any line item that is classified as "SMB" and qualifies based on UI selections (New with Deal Registration
-    or Renewal with Incumbency), automatically override the Classification to "MME" and set the Override Discount (%) accordingly.
-    """
-    # First, compute the cumulative total for core products (we consider "SMB" and "MME" as core)
     cumulative_total = 0.0
     for idx, row in boq_df.iterrows():
         classification = str(row.get("Classification", "")).strip().upper()
@@ -499,16 +450,12 @@ def recalc_boQ(boq_df, partner_type, ui_trans_type, deal_registered, incumbency)
                 continue
             cumulative_total += original * qty
 
-    # If cumulative total is 5000 or more, adjust qualifying lines
     if cumulative_total >= 5000:
         for idx, row in boq_df.iterrows():
             classification = str(row.get("Classification", "")).strip().upper()
-            # Check if line is a core product that is still "SMB"
             if classification == "SMB":
-                # Use the UI transaction type (ui_trans_type) to decide which condition to apply
                 if ui_trans_type == "New" and deal_registered:
-                    # Override discount using partner_discounts_DR
-                    new_disc = partner_discounts_DR.get(partner_type, 0) * 100  # percentage
+                    new_disc = partner_discounts_DR.get(partner_type, 0) * 100
                     boq_df.at[idx, "Classification"] = "MME"
                     boq_df.at[idx, "Override Discount (%)"] = f"{new_disc:.0f}"
                     boq_df.at[idx, "Status"] = f"MME, DR: {new_disc:.0f}%"
@@ -517,7 +464,6 @@ def recalc_boQ(boq_df, partner_type, ui_trans_type, deal_registered, incumbency)
                     boq_df.at[idx, "Classification"] = "MME"
                     boq_df.at[idx, "Override Discount (%)"] = f"{new_disc:.0f}"
                     boq_df.at[idx, "Status"] = f"MME, Incumbency: {new_disc:.0f}%"
-    # Now, proceed with final price recalculation as before
     new_rows = []
     for idx, row in boq_df.iterrows():
         try:
@@ -546,7 +492,7 @@ def recalc_boQ(boq_df, partner_type, ui_trans_type, deal_registered, incumbency)
     return new_df
 
 def generate_final_quote_wrapper(shipping_cost, boq_table, currency, vat, partner_type, ui_trans_type, deal_registered, incumbency):
-    time.sleep(0.5)  # slight delay to allow manual edits to commit
+    time.sleep(0.5)
     updated_boq = recalc_boQ(boq_table, partner_type, ui_trans_type, deal_registered, incumbency)
     final_quote = generate_final_quote(shipping_cost, updated_boq, currency, vat)
     return final_quote, updated_boq
@@ -655,8 +601,8 @@ def download_final_quote(boq_data, currency, vat):
         for col_num, col_name in enumerate(df_final.columns):
             worksheet.write(0, col_num, col_name, header_format)
 
-        total_rows = len(df_final) + 1  # +1 for header
-        summary_rows = 3               # Three summary rows
+        total_rows = len(df_final) + 1
+        summary_rows = 3
         data_rows = total_rows - 1 - summary_rows
 
         for row in range(1, data_rows + 1):
@@ -701,119 +647,161 @@ def toggle_shipping_box(override_value):
     else:
         return gr.update(visible=False, value=4)
 
-# ---------------------
-# Gradio UI Definition
-# ---------------------
-with gr.Blocks() as demo:
-    gr.Markdown("""
+# =====================
+# Gradio UI Definition Function
+# =====================
+def launch_gradio_interface():
+    with gr.Blocks() as demo:
+        gr.Markdown("""
 <h1 style="text-align:center; margin-bottom:0;">
   🚀 Sophos Quotation Generator
 </h1>
 <p style="text-align:center; font-size:0.9em; margin-top:0;">
   Version 2 - Developed by Rajeesh Nair - rajeesh@starlinkme.net
 </p>
-    """)
-    
-    with gr.Row():
-        category = gr.Dropdown(list(models_df.columns), label="Category")
-        model_selected = gr.Dropdown([], label="Model")
-        transaction_type = gr.Radio(["New", "Renewal"], label="Transaction Type")
-        term = gr.Dropdown(["12 MOS", "24 MOS", "36 MOS"] + [f"{i} MOS" for i in range(1, 12)], label="Term")
-        quantity = gr.Number(label="Quantity", value=1)
-        manual_sku = gr.Textbox(label="Enter SKU (Optional)", lines=5)
-                
-    with gr.Row():
-        category_message = gr.Markdown("", visible=False)
-    with gr.Row():
-        use_license = gr.Checkbox(label="Enable License", value=False, visible=False)
-        license_box = gr.Dropdown(choices=[], label="License", visible=False)
-    with gr.Row():
-        use_wireless_license = gr.Checkbox(label="Enable Wireless License", value=False, visible=False)
-    with gr.Row():
-        use_switch_support = gr.Checkbox(label="Enable Switch Support License", value=False, visible=False)
-    with gr.Row():
-        override_shipping = gr.Checkbox(label="Override Default Shipping Cost", value=False)
-        shipping_cost = gr.Number(label="Shipping Cost (%)", value=4, visible=False)
-    with gr.Row():
-        currency = gr.Dropdown(choices=["SAR", "AED", "QAR", "OMR", "KWD", "USD"], label="Currency", value="SAR")
-        vat = gr.Number(label="VAT (%)", value=15)
-    with gr.Row():
-        partner_type = gr.Dropdown(["Authorised", "Silver", "Gold", "Platinum"], label="Partner Type", value="Authorised")
-        deal_registered = gr.Checkbox(label="Deal Registration", value=False, visible=True)
-        incumbency = gr.Checkbox(label="Incumbency", value=False, visible=True)
-    
-    # Use hidden state (gr.State) to store the BOQ data.
-    quote_state = gr.State([])
-    
-    with gr.Row():
-        add_button = gr.Button("+ Add Line Item")
-        remove_button = gr.Button("- Remove Last Item")
-        reset_button = gr.Button("Reset Quote")
-    
-    gr.Markdown("## **BOQ**")
-    boq_table = gr.Dataframe(
-        headers=[
-            "SKU", "Description", "Term", "Quantity", "Original Price (USD)",
-            "Reseller Price (USD)", "Disc. Price (USD)",
-            "Override Discount (%)", "Additional Discount (%)",
-            "Classification", "Product Type", "Status"
-        ],
-        interactive=True,
-        label="BOQ Table (Editable: Quantity, Override Discount, Additional Discount)"
-    )
-    
-    gr.Markdown("<h2 style='color:green; font-weight:bold'>Final Quote</h2>")
-    generate_button = gr.Button("Generate Final Quote")
-    final_output = gr.Dataframe(label="Final Quote")
-    
-    download_button = gr.Button("Download Quote as Excel")
-    download_output = gr.File(label="Download Excel File")
-    
-    copy_sku_btn = gr.Button("Copy SKU Column")
-    copy_sku_output = gr.Textbox(label="Copy SKU Result")
-    
-    # ---------- Event bindings ----------
-    category.change(update_models, inputs=[category], outputs=[model_selected])
-    category.change(update_license_toggle, inputs=[category], outputs=[use_license])
-    category.change(lambda cat, ul: update_license_box(ul, cat), inputs=[category, use_license], outputs=[license_box])
-    use_license.change(update_license_box, inputs=[use_license, category], outputs=[license_box])
-    category.change(update_category_message, inputs=[category], outputs=[category_message])
-    override_shipping.change(toggle_shipping_box, inputs=[override_shipping], outputs=[shipping_cost])
-    download_button.click(fn=download_final_quote, inputs=[boq_table, currency, vat], outputs=[download_output])
-    
-    def toggle_wireless_license(model_sel):
-        if model_sel.strip().upper().startswith("AP6"):
-            return gr.update(visible=True)
-        return gr.update(visible=False)
-    model_selected.change(toggle_wireless_license, inputs=[model_selected], outputs=[use_wireless_license])
-    
-    def toggle_switch_support(category):
-        if category.strip().lower() == "switches":
-            return gr.update(visible=True, value=True)
-        return gr.update(visible=False, value=True)
-    category.change(toggle_switch_support, inputs=[category], outputs=[use_switch_support])
-    
-    add_button.click(
-        add_line_item,
-        inputs=[
-            category, model_selected, transaction_type, term, quantity, partner_type, manual_sku,
-            use_license, license_box, deal_registered, incumbency, use_wireless_license, use_switch_support, boq_table
-        ],
-        outputs=[boq_table, quote_state]
-    )
-    
-    remove_button.click(remove_last_item, inputs=[quote_state], outputs=[boq_table, quote_state])
-    reset_button.click(reset_quote, inputs=[quote_state], outputs=[boq_table, quote_state])
-    
-    # Updated generate final quote wrapper now accepts extra UI parameters for core total check
-    generate_button.click(
-        generate_final_quote_wrapper,
-        inputs=[shipping_cost, boq_table, currency, vat, partner_type, transaction_type, deal_registered, incumbency],
-        outputs=[final_output, boq_table]
-    )
-    
-    copy_sku_btn.click(copy_sku_column, inputs=[shipping_cost, boq_table], outputs=copy_sku_output)
-    
-# Launch the Gradio app with port from environment variable.
-port = int(os.environ.get("PORT", 7860))
-demo.launch(server_name="0.0.0.0", server_port=port)
+        """)
+        
+        with gr.Row():
+            category = gr.Dropdown(list(models_df.columns), label="Category")
+            model_selected = gr.Dropdown([], label="Model")
+            transaction_type = gr.Radio(["New", "Renewal"], label="Transaction Type")
+            term = gr.Dropdown(["12 MOS", "24 MOS", "36 MOS"] + [f"{i} MOS" for i in range(1, 12)], label="Term")
+            quantity = gr.Number(label="Quantity", value=1)
+            manual_sku = gr.Textbox(label="Enter SKU (Optional)", lines=5)
+                    
+        with gr.Row():
+            category_message = gr.Markdown("", visible=False)
+        with gr.Row():
+            use_license = gr.Checkbox(label="Enable License", value=False, visible=False)
+            license_box = gr.Dropdown(choices=[], label="License", visible=False)
+        with gr.Row():
+            use_wireless_license = gr.Checkbox(label="Enable Wireless License", value=False, visible=False)
+        with gr.Row():
+            use_switch_support = gr.Checkbox(label="Enable Switch Support License", value=False, visible=False)
+        with gr.Row():
+            override_shipping = gr.Checkbox(label="Override Default Shipping Cost", value=False)
+            shipping_cost = gr.Number(label="Shipping Cost (%)", value=4, visible=False)
+        with gr.Row():
+            currency = gr.Dropdown(choices=["SAR", "AED", "QAR", "OMR", "KWD", "USD"], label="Currency", value="SAR")
+            vat = gr.Number(label="VAT (%)", value=15)
+        with gr.Row():
+            partner_type = gr.Dropdown(["Authorised", "Silver", "Gold", "Platinum"], label="Partner Type", value="Authorised")
+            deal_registered = gr.Checkbox(label="Deal Registration", value=False, visible=True)
+            incumbency = gr.Checkbox(label="Incumbency", value=False, visible=True)
+        
+        quote_state = gr.State([])
+        
+        with gr.Row():
+            add_button = gr.Button("+ Add Line Item")
+            remove_button = gr.Button("- Remove Last Item")
+            reset_button = gr.Button("Reset Quote")
+        
+        gr.Markdown("## **BOQ**")
+        boq_table = gr.Dataframe(
+            headers=[
+                "SKU", "Description", "Term", "Quantity", "Original Price (USD)",
+                "Reseller Price (USD)", "Disc. Price (USD)",
+                "Override Discount (%)", "Additional Discount (%)",
+                "Classification", "Product Type", "Status"
+            ],
+            interactive=True,
+            label="BOQ Table (Editable: Quantity, Override Discount, Additional Discount)"
+        )
+        
+        gr.Markdown("<h2 style='color:green; font-weight:bold'>Final Quote</h2>")
+        generate_button = gr.Button("Generate Final Quote")
+        final_output = gr.Dataframe(label="Final Quote")
+        
+        download_button = gr.Button("Download Quote as Excel")
+        download_output = gr.File(label="Download Excel File")
+        
+        copy_sku_btn = gr.Button("Copy SKU Column")
+        copy_sku_output = gr.Textbox(label="Copy SKU Result")
+        
+        # ---------- Event bindings ----------
+        category.change(update_models, inputs=[category], outputs=[model_selected])
+        category.change(update_license_toggle, inputs=[category], outputs=[use_license])
+        category.change(lambda cat, ul: update_license_box(ul, cat), inputs=[category, use_license], outputs=[license_box])
+        use_license.change(update_license_box, inputs=[use_license, category], outputs=[license_box])
+        category.change(update_category_message, inputs=[category], outputs=[category_message])
+        override_shipping.change(toggle_shipping_box, inputs=[override_shipping], outputs=[shipping_cost])
+        download_button.click(fn=download_final_quote, inputs=[boq_table, currency, vat], outputs=[download_output])
+        
+        def toggle_wireless_license(model_sel):
+            if model_sel.strip().upper().startswith("AP6"):
+                return gr.update(visible=True)
+            return gr.update(visible=False)
+        model_selected.change(toggle_wireless_license, inputs=[model_selected], outputs=[use_wireless_license])
+        
+        def toggle_switch_support(category):
+            if category.strip().lower() == "switches":
+                return gr.update(visible=True, value=True)
+            return gr.update(visible=False, value=True)
+        category.change(toggle_switch_support, inputs=[category], outputs=[use_switch_support])
+        
+        add_button.click(
+            add_line_item,
+            inputs=[
+                category, model_selected, transaction_type, term, quantity, partner_type, manual_sku,
+                use_license, license_box, deal_registered, incumbency, use_wireless_license, use_switch_support, boq_table
+            ],
+            outputs=[boq_table, quote_state]
+        )
+        
+        remove_button.click(remove_last_item, inputs=[quote_state], outputs=[boq_table, quote_state])
+        reset_button.click(reset_quote, inputs=[quote_state], outputs=[boq_table, quote_state])
+        
+        generate_button.click(
+            generate_final_quote_wrapper,
+            inputs=[shipping_cost, boq_table, currency, vat, partner_type, transaction_type, deal_registered, incumbency],
+            outputs=[final_output, boq_table]
+        )
+        
+        copy_sku_btn.click(copy_sku_column, inputs=[shipping_cost, boq_table], outputs=[copy_sku_output])
+        
+    return demo
+
+# =====================
+# Flask Application with Google OAuth using Flask-Dance
+# =====================
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(16))
+
+from flask import session
+from flask_dance.contrib.google import make_google_blueprint, google
+
+google_bp = make_google_blueprint(
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    scope=["profile", "email"],
+    redirect_url="/login/google/authorized"
+)
+app.register_blueprint(google_bp, url_prefix="/login")
+
+@app.route("/")
+def home():
+    if not google.authorized:
+        return redirect(url_for("google.login"))
+    resp = google.get("/oauth2/v2/userinfo")
+    if not resp.ok:
+        return redirect(url_for("google.login"))
+    user_info = resp.json()
+    gradio_iframe = f"""
+    <h2>Welcome, {user_info.get("email", "User")}! <a href="/logout">Logout</a></h2>
+    <iframe src="/gradio" style="width:100%; height:800px; border:none;"></iframe>
+    """
+    return render_template_string(gradio_iframe)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("home"))
+
+@app.route("/gradio")
+def gradio_route():
+    demo = launch_gradio_interface()
+    return demo.launch(inline=True, share=False)
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 7860))
+    app.run(debug=True, host="0.0.0.0", port=port)
