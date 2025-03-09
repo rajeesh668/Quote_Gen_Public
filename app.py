@@ -1,5 +1,6 @@
 import os
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+
 from flask import Flask, redirect, url_for, session, render_template_string
 from flask_dance.contrib.google import make_google_blueprint, google
 import gradio as gr
@@ -9,6 +10,7 @@ import uuid
 import time
 import secrets
 import pyperclip
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # =====================
 # Data Loading Functions
@@ -765,13 +767,10 @@ def launch_gradio_interface():
 # =====================
 # Flask Application with Google OAuth using Flask-Dance
 # =====================
-from werkzeug.middleware.proxy_fix import ProxyFix
-
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", secrets.token_hex(16))
 app.config['PREFERRED_URL_SCHEME'] = 'https'
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
 
 from flask import session
 from flask_dance.contrib.google import make_google_blueprint, google
@@ -782,7 +781,6 @@ google_bp = make_google_blueprint(
     scope=["profile", "email"],
     redirect_url="https://quotegenpublic-production.up.railway.app/login/google/authorized"
 )
-
 app.register_blueprint(google_bp, url_prefix="/login")
 
 @app.route("/")
