@@ -533,7 +533,7 @@ def recalc_boQ(boq_df, partner_type, ui_trans_type, deal_registered, incumbency)
         except:
             additional_disc = 0.0
         final_price = original * (1 - override_disc/100) * (1 - additional_disc/100)
-        final_price = custom_round(final_price)
+        final_price = round(final_price, 2)
         row["Disc. Price (USD)"] = f"{final_price:.2f}"
         new_rows.append(row)
     new_df = pd.DataFrame(new_rows)
