@@ -561,31 +561,52 @@ def generate_final_quote(shipping_cost, boq_data, currency, vat):
         ])
     df_quote = boq_data.copy()
     conversion_rate = conversion_rates.get(currency, 1.0)
-    df_quote[f"Unit Price ({currency})"] = df_quote["Disc. Price (USD)"].astype(float).apply(lambda x: custom_round(x * conversion_rate))
-    df_quote[f"Total Price ({currency})"] = df_quote.apply(lambda row: custom_round(row[f"Unit Price ({currency})"] * float(row["Quantity"])), axis=1)
-    total_subtotal = df_quote[f"Total Price ({currency})"].sum()
+    
+    # Calculate the unit price using custom_round and store as numeric.
+    df_quote["UnitPriceCalc"] = df_quote["Disc. Price (USD)"].astype(float).apply(lambda x: custom_round(x * conversion_rate))
+    # Format unit price for display.
+    df_quote[f"Unit Price ({currency})"] = df_quote["UnitPriceCalc"].apply(lambda x: f"{x:.2f}")
+    
+    # Calculate total price per line using the rounded unit price (numeric).
+    df_quote["TotalPriceCalc"] = df_quote.apply(lambda row: custom_round(row["UnitPriceCalc"] * float(row["Quantity"])), axis=1)
+    # Format total price for display.
+    df_quote[f"Total Price ({currency})"] = df_quote["TotalPriceCalc"].apply(lambda x: f"{x:.2f}")
+    
+    # Use the numeric totals for further calculations.
+    rounded_subtotal = df_quote["TotalPriceCalc"].sum()
+    
+    # Compute shipping cost based on original prices, then round using custom_round.
     shipping_items = df_quote[df_quote["Product Type"].isin(["Appliance", "Hardware"])]
     total_original_usd = shipping_items.apply(lambda r: float(r["Original Price (USD)"]) * float(r["Quantity"]), axis=1).sum()
-    total_shipping = total_original_usd * (float(shipping_cost) / 100.0) * conversion_rate
-    total_vat = (vat/100.0) * (total_subtotal + total_shipping)
-    grand_total = total_subtotal + total_shipping + total_vat
+    raw_shipping = total_original_usd * (float(shipping_cost) / 100.0) * conversion_rate
+    rounded_shipping = custom_round(raw_shipping)
+    display_shipping = f"{rounded_shipping:.2f}"
+    
+    # Calculate "Total without VAT" = rounded subtotal + rounded shipping.
+    total_without_vat = rounded_subtotal + rounded_shipping
+    
+    # VAT is calculated on the sum of the rounded subtotal and rounded shipping.
+    vat_amount = (vat / 100.0) * total_without_vat
+    
+    # Grand total = Total without VAT + VAT.
+    grand_total = total_without_vat + vat_amount
+    
+    # Build the final DataFrame for line items.
     df_final_quote = df_quote[[
         "SKU", "Description", "Term", "Quantity", 
         f"Unit Price ({currency})", f"Total Price ({currency})"
     ]]
+    
+    # Create a summary DataFrame with an extra row for "Total without VAT".
     df_summary = pd.DataFrame([
-        ["", "Shipping Cost", "", "", "", f"{total_shipping:.2f}"],
-        ["", f"VAT ({vat}%)", "", "", "", f"{total_vat:.2f}"],
+        ["", "Shipping Cost", "", "", "", display_shipping],
+        ["", "Total without VAT", "", "", "", f"{total_without_vat:.2f}"],
+        ["", f"VAT ({vat}%)", "", "", "", f"{vat_amount:.2f}"],
         ["", "GRAND TOTAL", "", "", "", f"{grand_total:.2f}"]
     ], columns=df_final_quote.columns)
+    
     df_final = pd.concat([df_final_quote, df_summary], ignore_index=True)
     return df_final
-
-def toggle_shipping_box(override_value):
-    if override_value:
-        return gr.update(visible=True)
-    else:
-        return gr.update(visible=False, value=4)
 
 def download_final_quote(boq_data, currency, vat):
     if boq_data is None or boq_data.empty:
@@ -656,7 +677,7 @@ def download_final_quote(boq_data, currency, vat):
             worksheet.write(0, col_num, col_name, header_format)
 
         total_rows = len(df_final) + 1  # +1 for header
-        summary_rows = 3               # Three summary rows
+        summary_rows = 4               # Now we have 4 summary rows
         data_rows = total_rows - 1 - summary_rows
 
         for row in range(1, data_rows + 1):
@@ -684,6 +705,7 @@ def download_final_quote(boq_data, currency, vat):
             worksheet.set_row(row, 20)
 
     return file_path
+
 
 def copy_sku_column(shipping_cost, boq_data):
     final_df = generate_final_quote(shipping_cost, boq_data, "SAR", 15)
