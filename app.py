@@ -39,7 +39,7 @@ def load_fixed_skus():
     Loads FixedSKUs.csv from the local folder.
     """
     try:
-        fixed_df = pd.read_csv(r"C:\Quote_Gen_Local\FixedSKUs.csv", encoding="ISO-8859-1")
+        fixed_df = pd.read_csv("data/License.csv", encoding="ISO-8859-1")
         fixed_dict = dict(zip(fixed_df["Model"].str.strip(), fixed_df["SKU"].str.strip()))
         return fixed_dict
     except Exception as e:
